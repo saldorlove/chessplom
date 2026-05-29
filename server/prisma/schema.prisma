@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  email             String @unique
+  emailCanonical    String @unique
+  username          String @unique
+  usernameCanonical String @unique
+
+  passwordHash String
+  avatarUrl    String?
+  rating       Int     @default(1000)
+
+  emailVerifiedAt DateTime?
+
+  emailVerificationCodeHash     String?
+  emailVerificationExpiresAt      DateTime?
+  emailVerificationLastSentAt     DateTime?
+  emailVerificationAttemptCount   Int       @default(0)
+
+  passwordResetCodeHash     String?
+  passwordResetExpiresAt    DateTime?
+  passwordResetLastSentAt   DateTime?
+  passwordResetAttemptCount Int       @default(0)
+
+  termsAcceptedAt               DateTime?
+  privacyAcceptedAt             DateTime?
+  personalDataConsentAcceptedAt DateTime?
+  personalDataConsentIp         String?
+  personalDataConsentUserAgent  String?
+
+  games Game[]
+
+  sentFriendRequests     FriendRequest[] @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
+  friendshipsA           Friendship[]    @relation("FriendshipUserA")
+  friendshipsB           Friendship[]    @relation("FriendshipUserB")
+}
+
+model Game {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String?
+  owner   User?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  whiteName String
+  blackName String
+
+  result       String
+  resultReason String?
+
+  timeControl         String
+  timeControlCategory String @default("unknown")
+
+  pgn String
+
+  moveTimesMs Json?
+  moveCount   Int   @default(0)
+  durationMs  Int   @default(0)
+
+  ratingBefore Int?
+  ratingAfter  Int?
+  ratingDelta  Int?
+
+  source String @default("local-play")
+
+  @@index([ownerId])
+  @@index([createdAt])
+  @@index([result])
+  @@index([resultReason])
+  @@index([timeControl])
+  @@index([timeControlCategory])
+  @@index([moveCount])
+  @@index([durationMs])
+  @@index([ratingDelta])
+}
+
+model NewsArticle {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slug    String @unique
+  title   String
+  summary String
+  content String
+
+  author      String?
+  sourceName  String?
+  sourceUrl   String?
+  externalUrl String?
+
+  tag      String  @default("Платформа")
+  coverUrl String?
+
+  isPublished Boolean  @default(true)
+  publishedAt DateTime @default(now())
+
+  @@index([publishedAt])
+  @@index([tag])
+  @@index([isPublished])
+  @@index([sourceName])
+  @@index([externalUrl])
+}
+
+model FriendRequest {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  senderId   String
+  receiverId String
+  status     String @default("pending")
+
+  sender   User @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userAId String
+  userBId String
+
+  userA User @relation("FriendshipUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("FriendshipUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model Opening {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slug    String @unique
+  eco     String
+  title   String
+  side    String
+  against String
+  summary String
+
+  variations OpeningVariation[]
+
+  @@index([side])
+  @@index([eco])
+}
+
+model OpeningVariation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  openingId  String
+  key        String
+  title      String
+  subtitle   String
+  orderIndex Int    @default(0)
+
+  opening Opening       @relation(fields: [openingId], references: [id], onDelete: Cascade)
+  steps   OpeningStep[]
+
+  @@unique([openingId, key])
+  @@index([openingId])
+  @@index([orderIndex])
+}
+
+model OpeningStep {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variationId String
+  moveIndex   Int
+  san         String
+  explanation String
+  arrows      Json?
+  squares     Json?
+
+  variation OpeningVariation @relation(fields: [variationId], references: [id], onDelete: Cascade)
+
+  @@unique([variationId, moveIndex])
+  @@index([variationId])
+  @@index([moveIndex])
+}

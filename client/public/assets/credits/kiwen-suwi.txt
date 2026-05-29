@@ -1,0 +1,7 @@
+Kiwen Suwi chess pieces
+
+Author: neverRare
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Source: https://github.com/neverRare/kiwen-suwi
+
+Used in Zugzwang.ai as a chess piece theme.
