@@ -1,4 +1,4 @@
-type EmailProvider = "console" | "resend";
+type EmailProvider = "console" | "resend" | "smtp";
 type SendVerificationEmailParams = {
     to: string;
     username: string;

@@ -115,13 +115,13 @@ function toPublicUser(user) {
 }
 function getVerificationSentMessage(provider) {
     if (provider === "console") {
-        return "Код подтверждения создан. В DEV-режиме код выведен в консоль сервера.";
+        return "Код подтверждения отправлен. Проверь почту или консоль сервера в DEV-режиме.";
     }
     return "Код подтверждения отправлен на email.";
 }
 function getPasswordResetSentMessage(provider) {
     if (provider === "console") {
-        return "Код восстановления создан. В DEV-режиме код выведен в консоль сервера.";
+        return "Код восстановления отправлен. Проверь почту или консоль сервера в DEV-режиме.";
     }
     return "Код восстановления отправлен на email.";
 }

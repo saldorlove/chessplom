@@ -1,14 +1,34 @@
 import { Resend } from "resend";
+import { createTransport } from "nodemailer";
 function getEmailProvider() {
     const provider = (process.env.EMAIL_PROVIDER ?? "console").trim().toLowerCase();
     if (provider === "resend") {
         return "resend";
     }
+    if (provider === "smtp" || provider === "brevo") {
+        return "smtp";
+    }
     return "console";
 }
 function getMailFrom() {
-    return (process.env.MAIL_FROM?.trim() ||
-        "Zugzwang.ai <noreply@localhost>");
+    return process.env.MAIL_FROM?.trim() || "Zugzwang AI <noreply@localhost>";
+}
+function getSmtpSecure(port) {
+    const raw = process.env.SMTP_SECURE?.trim().toLowerCase();
+    if (raw === "true" || raw === "1" || raw === "yes") {
+        return true;
+    }
+    if (raw === "false" || raw === "0" || raw === "no") {
+        return false;
+    }
+    return port === 465;
+}
+function getRequiredEnv(name) {
+    const value = process.env[name]?.trim();
+    if (!value) {
+        throw new Error(`${name} is not set`);
+    }
+    return value;
 }
 function escapeHtml(value) {
     return value
@@ -22,11 +42,11 @@ function buildVerificationEmailText({ username, code, expiresInMinutes, }) {
     return [
         `Здравствуйте, ${username}!`,
         "",
-        "Ваш код подтверждения для Zugzwang.ai:",
+        "Ваш код подтверждения для Zugzwang AI:",
         code,
         "",
         `Код действует ${expiresInMinutes} минут.`,
-        "Если вы не регистрировались на Zugzwang.ai, просто проигнорируйте это письмо.",
+        "Если вы не регистрировались на Zugzwang AI, просто проигнорируйте это письмо.",
     ].join("\n");
 }
 function buildVerificationEmailHtml({ username, code, expiresInMinutes, }) {
@@ -36,7 +56,7 @@ function buildVerificationEmailHtml({ username, code, expiresInMinutes, }) {
     <div style="margin:0;padding:24px;background:#f8fafc;font-family:Inter,Arial,sans-serif;color:#0f172a;">
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;">
         <div style="padding:22px 24px;background:#071b45;color:#ffffff;">
-          <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f8d77f;">Zugzwang.ai</div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f8d77f;">Zugzwang AI</div>
           <h1 style="margin:8px 0 0;font-size:24px;line-height:1.25;">Подтверждение email</h1>
         </div>
 
@@ -54,7 +74,7 @@ function buildVerificationEmailHtml({ username, code, expiresInMinutes, }) {
             Код действует <strong>${expiresInMinutes} минут</strong>.
           </p>
           <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">
-            Если вы не регистрировались на Zugzwang.ai, просто проигнорируйте это письмо.
+            Если вы не регистрировались на Zugzwang AI, просто проигнорируйте это письмо.
           </p>
         </div>
       </div>
@@ -65,7 +85,7 @@ function buildPasswordResetEmailText({ username, code, expiresInMinutes, }) {
     return [
         `Здравствуйте, ${username}!`,
         "",
-        "Ваш код восстановления пароля для Zugzwang.ai:",
+        "Ваш код восстановления пароля для Zugzwang AI:",
         code,
         "",
         `Код действует ${expiresInMinutes} минут.`,
@@ -79,7 +99,7 @@ function buildPasswordResetEmailHtml({ username, code, expiresInMinutes, }) {
     <div style="margin:0;padding:24px;background:#f8fafc;font-family:Inter,Arial,sans-serif;color:#0f172a;">
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;">
         <div style="padding:22px 24px;background:#071b45;color:#ffffff;">
-          <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f8d77f;">Zugzwang.ai</div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f8d77f;">Zugzwang AI</div>
           <h1 style="margin:8px 0 0;font-size:24px;line-height:1.25;">Восстановление пароля</h1>
         </div>
 
@@ -104,64 +124,86 @@ function buildPasswordResetEmailHtml({ username, code, expiresInMinutes, }) {
     </div>
   `;
 }
-export async function sendVerificationEmail(params) {
-    const provider = getEmailProvider();
-    if (provider === "console") {
-        console.log(`[DEV EMAIL] Код подтверждения для ${params.to}: ${params.code}`);
-        return {
-            provider: "console",
-        };
-    }
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-        throw new Error("RESEND_API_KEY is not set");
-    }
+async function sendConsoleEmail(message) {
+    console.log(`[DEV EMAIL] ${message.subject} для ${message.to}`);
+    console.log(message.text);
+    return {
+        provider: "console",
+    };
+}
+async function sendResendEmail(message) {
+    const apiKey = getRequiredEnv("RESEND_API_KEY");
     const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
         from: getMailFrom(),
-        to: params.to,
-        subject: "Код подтверждения Zugzwang.ai",
-        text: buildVerificationEmailText(params),
-        html: buildVerificationEmailHtml(params),
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
     });
     if (error) {
         throw new Error(typeof error.message === "string"
             ? error.message
-            : "Resend failed to send verification email");
+            : "Resend failed to send email");
     }
     return {
         provider: "resend",
         messageId: data?.id,
     };
 }
-export async function sendPasswordResetEmail(params) {
+async function sendSmtpEmail(message) {
+    const host = getRequiredEnv("SMTP_HOST");
+    const user = getRequiredEnv("SMTP_USER");
+    const pass = getRequiredEnv("SMTP_PASSWORD");
+    const port = Number(process.env.SMTP_PORT ?? 587);
+    if (!Number.isFinite(port)) {
+        throw new Error("SMTP_PORT is invalid");
+    }
+    const transporter = createTransport({
+        host,
+        port,
+        secure: getSmtpSecure(port),
+        auth: {
+            user,
+            pass,
+        },
+    });
+    const info = await transporter.sendMail({
+        from: getMailFrom(),
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+    });
+    return {
+        provider: "smtp",
+        messageId: info.messageId,
+    };
+}
+async function sendEmail(message) {
     const provider = getEmailProvider();
     if (provider === "console") {
-        console.log(`[DEV EMAIL] Код восстановления пароля для ${params.to}: ${params.code}`);
-        return {
-            provider: "console",
-        };
+        return sendConsoleEmail(message);
     }
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-        throw new Error("RESEND_API_KEY is not set");
+    if (provider === "resend") {
+        return sendResendEmail(message);
     }
-    const resend = new Resend(apiKey);
-    const { data, error } = await resend.emails.send({
-        from: getMailFrom(),
+    return sendSmtpEmail(message);
+}
+export async function sendVerificationEmail(params) {
+    return sendEmail({
         to: params.to,
-        subject: "Восстановление пароля Zugzwang.ai",
+        subject: "Код подтверждения Zugzwang AI",
+        text: buildVerificationEmailText(params),
+        html: buildVerificationEmailHtml(params),
+    });
+}
+export async function sendPasswordResetEmail(params) {
+    return sendEmail({
+        to: params.to,
+        subject: "Восстановление пароля Zugzwang AI",
         text: buildPasswordResetEmailText(params),
         html: buildPasswordResetEmailHtml(params),
     });
-    if (error) {
-        throw new Error(typeof error.message === "string"
-            ? error.message
-            : "Resend failed to send password reset email");
-    }
-    return {
-        provider: "resend",
-        messageId: data?.id,
-    };
 }
 //# sourceMappingURL=emailService.js.map
