@@ -21,6 +21,8 @@ import {
   type FriendSearchUserDto,
   type FriendUserDto,
 } from "../api/friendsApi";
+import "../styles/publicProfiles.css";
+
 import {
   useFriendRoom,
   type FriendPresenceStatus,
@@ -71,6 +73,10 @@ function getInitialLetter(name: string) {
   return name.trim().slice(0, 1).toUpperCase() || "?";
 }
 
+function getPublicProfilePath(username: string) {
+  return `/profile/${encodeURIComponent(username)}`;
+}
+
 function getFriendStatusLabel(status: FriendPresenceStatus) {
   if (status === "in-game") return "В игре";
   if (status === "online") return "Онлайн";
@@ -105,11 +111,22 @@ function FriendUserCard({
 }) {
   return (
     <article className="friends-user-card">
-      <FriendAvatar user={user} />
+      <Link
+        className="friends-profile-avatar-link"
+        to={getPublicProfilePath(user.username)}
+        aria-label={`Открыть профиль ${user.username}`}
+      >
+        <FriendAvatar user={user} />
+      </Link>
 
       <div className="friends-user-main">
         <div className="friends-user-name-row">
-          <strong>{user.username}</strong>
+          <Link
+            className="friends-profile-name-link"
+            to={getPublicProfilePath(user.username)}
+          >
+            <strong>{user.username}</strong>
+          </Link>
 
           {status ? (
             <span className={["friends-status-pill", status].join(" ")}>

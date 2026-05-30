@@ -16,6 +16,8 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import PersonalDataConsentPage from "./pages/PersonalDataConsentPage";
 import ProfilePage from "./pages/ProfilePage";
+import PublicProfilePage from "./pages/PublicProfilePage";
+import PublicGamesPage from "./pages/PublicGamesPage";
 import SettingsPage from "./pages/SettingsPage";
 
 import AuthStatus from "./components/auth/AuthStatus";
@@ -167,6 +169,8 @@ function App() {
 
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/:username/games" element={<PublicGamesPage />} />
+            <Route path="/profile/:username" element={<PublicProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
 
             <Route path="/login" element={<LoginPage />} />

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { mkdir, unlink } from "node:fs/promises";
@@ -15,6 +16,153 @@ const multer = require("multer") as typeof import("multer");
 const router = Router();
 
 const MAX_AVATAR_SIZE_BYTES = 2 * 1024 * 1024;
+
+const PUBLIC_PROFILE_GAME_SOURCES = ["online-play", "friend-play", "bot-play"];
+
+type PublicProfileGameSource = {
+  id: string;
+  createdAt: Date;
+  whiteName: string;
+  blackName: string;
+  result: string;
+  resultReason: string | null;
+  timeControl: string;
+  timeControlCategory: string;
+  moveCount: number;
+  durationMs: number;
+  ratingBefore: number | null;
+  ratingAfter: number | null;
+  ratingDelta: number | null;
+  source: string;
+};
+
+function normalizeProfileUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+function getPublicProfileGamesWhere(userId: string): Prisma.GameWhereInput {
+  return {
+    ownerId: userId,
+    source: {
+      in: PUBLIC_PROFILE_GAME_SOURCES,
+    },
+  };
+}
+
+function toPublicProfileGame(game: PublicProfileGameSource) {
+  return {
+    id: game.id,
+    createdAt: game.createdAt,
+    whiteName: game.whiteName,
+    blackName: game.blackName,
+    result: game.result,
+    resultReason: game.resultReason,
+    timeControl: game.timeControl,
+    timeControlCategory: game.timeControlCategory,
+    moveCount: game.moveCount,
+    durationMs: game.durationMs,
+    ratingBefore: game.ratingBefore,
+    ratingAfter: game.ratingAfter,
+    ratingDelta: game.ratingDelta,
+    source: game.source,
+  };
+}
+
+function getProfilePlayerSide(
+  game: Pick<PublicProfileGameSource, "whiteName" | "blackName">,
+  username: string
+) {
+  const usernameCanonical = normalizeProfileUsername(username);
+
+  if (normalizeProfileUsername(game.whiteName) === usernameCanonical) {
+    return "white" as const;
+  }
+
+  if (normalizeProfileUsername(game.blackName) === usernameCanonical) {
+    return "black" as const;
+  }
+
+  return null;
+}
+
+function buildPublicProfileStats(
+  games: Array<
+    Pick<PublicProfileGameSource, "whiteName" | "blackName" | "result" | "source">
+  >,
+  username: string
+) {
+  const stats = games.reduce(
+    (acc, game) => {
+      const side = getProfilePlayerSide(game, username);
+
+      acc.total += 1;
+
+      if (game.source === "online-play") {
+        acc.online += 1;
+      }
+
+      if (game.source === "friend-play") {
+        acc.friend += 1;
+      }
+
+      if (game.source === "bot-play") {
+        acc.bot += 1;
+      }
+
+      if (game.result === "1/2-1/2") {
+        acc.draws += 1;
+        return acc;
+      }
+
+      if (!side) {
+        return acc;
+      }
+
+      const won =
+        (side === "white" && game.result === "1-0") ||
+        (side === "black" && game.result === "0-1");
+
+      if (won) {
+        acc.wins += 1;
+      } else {
+        acc.losses += 1;
+      }
+
+      return acc;
+    },
+    {
+      total: 0,
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      online: 0,
+      friend: 0,
+      bot: 0,
+    }
+  );
+
+  const completedGames = stats.wins + stats.losses + stats.draws;
+
+  return {
+    ...stats,
+    winRateText:
+      completedGames > 0
+        ? `${Math.round((stats.wins / completedGames) * 100)}%`
+        : "—",
+  };
+}
+
+function getPublicGamesLimit(value: unknown) {
+  const parsedValue =
+    typeof value === "string" && value.trim() ? Number(value) : 100;
+
+  if (!Number.isFinite(parsedValue)) {
+    return 100;
+  }
+
+  return Math.min(Math.max(Math.round(parsedValue), 1), 100);
+}
+
 
 const AVATAR_EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -168,6 +316,131 @@ function uploadAvatarMiddleware(
     });
   });
 }
+
+
+router.get("/public/:username/games", async (req, res) => {
+  try {
+    const usernameCanonical = normalizeProfileUsername(req.params.username);
+    const limit = getPublicGamesLimit(req.query.limit);
+
+    const user = await prisma.user.findUnique({
+      where: {
+        usernameCanonical,
+      },
+      select: {
+        id: true,
+        username: true,
+        avatarUrl: true,
+        rating: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({
+        message: "Пользователь не найден",
+      });
+      return;
+    }
+
+    const where = getPublicProfileGamesWhere(user.id);
+
+    const [games, total] = await Promise.all([
+      prisma.game.findMany({
+        where,
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: limit,
+      }),
+      prisma.game.count({
+        where,
+      }),
+    ]);
+
+    res.json({
+      user,
+      games: games.map(toPublicProfileGame),
+      total,
+      limit,
+    });
+  } catch (error) {
+    console.error("Не удалось загрузить публичную историю партий", error);
+
+    res.status(500).json({
+      message: "Не удалось загрузить историю партий игрока",
+    });
+  }
+});
+
+router.get("/public/:username", async (req, res) => {
+  try {
+    const usernameCanonical = normalizeProfileUsername(req.params.username);
+
+    const user = await prisma.user.findUnique({
+      where: {
+        usernameCanonical,
+      },
+      select: {
+        id: true,
+        username: true,
+        avatarUrl: true,
+        rating: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({
+        message: "Пользователь не найден",
+      });
+      return;
+    }
+
+    const where = getPublicProfileGamesWhere(user.id);
+
+    const [gamesForStats, recentGames] = await Promise.all([
+      prisma.game.findMany({
+        where,
+        select: {
+          id: true,
+          createdAt: true,
+          whiteName: true,
+          blackName: true,
+          result: true,
+          resultReason: true,
+          timeControl: true,
+          timeControlCategory: true,
+          moveCount: true,
+          durationMs: true,
+          ratingBefore: true,
+          ratingAfter: true,
+          ratingDelta: true,
+          source: true,
+        },
+      }),
+      prisma.game.findMany({
+        where,
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+    ]);
+
+    res.json({
+      user,
+      stats: buildPublicProfileStats(gamesForStats, user.username),
+      recentGames: recentGames.map(toPublicProfileGame),
+    });
+  } catch (error) {
+    console.error("Не удалось загрузить публичный профиль", error);
+
+    res.status(500).json({
+      message: "Не удалось загрузить профиль игрока",
+    });
+  }
+});
 
 router.patch("/me", requireAuth, async (req, res) => {
   try {
