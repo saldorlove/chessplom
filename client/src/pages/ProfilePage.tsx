@@ -442,9 +442,11 @@ export default function ProfilePage() {
 
         <div className="profile-card">
           <span>Email</span>
-          <strong>
-            {user.emailVerified ? "Подтверждён" : "Не подтверждён"}
-          </strong>
+            {user.emailVerified ? (
+              <strong>Подтверждён</strong>
+            ) : (
+              <Link to="/verify-email">Не подтверждён</Link>
+            )}
         </div>
 
         <div className="profile-card">
@@ -453,8 +455,8 @@ export default function ProfilePage() {
         </div>
 
         <div className="profile-card">
-          <span>История</span>
-          <Link to="/history">Мои партии</Link>
+          <span>Друзья</span>
+          <Link to="/friends">Список друзей</Link>
         </div>
 
       </div>
