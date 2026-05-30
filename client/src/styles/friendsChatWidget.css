@@ -91,21 +91,30 @@
 
 .friends-chat-back,
 .friends-chat-close {
-  display: grid;
+  display: inline-flex;
   width: 34px;
   height: 34px;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
   cursor: pointer;
-  font-size: 25px;
-  line-height: 1;
+  line-height: 0;
 }
 
-.friends-chat-close {
-  font-size: 21px;
+.friends-chat-back svg,
+.friends-chat-close svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.friends-chat-back:hover,
+.friends-chat-close:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .friends-chat-conversations,
@@ -337,5 +346,9 @@
   .friends-chat-toggle {
     width: 50px;
     height: 50px;
+  }
+
+  .friends-chat-widget.is-open .friends-chat-toggle {
+    display: none;
   }
 }

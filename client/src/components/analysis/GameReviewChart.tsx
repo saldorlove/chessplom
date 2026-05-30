@@ -277,7 +277,7 @@ export default function GameReviewChart({
 
         {onJumpToMove ? (
           <p className="game-review-chart-hint">
-            Клик по графику переносит доску к выбранному ходу.
+            Клик по графику переносит доску к выбранному ходу
           </p>
         ) : null}
       </div>

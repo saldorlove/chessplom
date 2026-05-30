@@ -820,7 +820,7 @@ export default function AnalysisPage() {
               <div>
                 <h3>PGN партии</h3>
                 <p className="analysis-v4-import-subtitle">
-                  Загрузка партии для просмотра и анализа.
+                  Загрузка партии для просмотра и анализа
                 </p>
               </div>
 

@@ -276,7 +276,11 @@ export default function FriendsChatWidget() {
   }
 
   return (
-    <div className="friends-chat-widget">
+    <div
+      className={["friends-chat-widget", isOpen ? "is-open" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {isOpen ? (
         <section className="friends-chat-panel" aria-label="Чат с друзьями">
           <header className="friends-chat-header">
@@ -291,7 +295,16 @@ export default function FriendsChatWidget() {
                 }}
                 aria-label="Вернуться к списку друзей"
               >
-                ‹
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M15 6l-6 6 6 6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.4"
+                  />
+                </svg>
               </button>
             ) : null}
 
@@ -319,7 +332,15 @@ export default function FriendsChatWidget() {
               onClick={closeWidget}
               aria-label="Закрыть чат"
             >
-              ×
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M7 7l10 10M17 7L7 17"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="2.4"
+                />
+              </svg>
             </button>
           </header>
 
