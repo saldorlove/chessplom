@@ -54,7 +54,7 @@ export const PIECE_THEMES: {
   },
 ];
 
-const DEFAULT_PIECE_THEME: PieceTheme = "wooden-figures";
+const DEFAULT_PIECE_THEME: PieceTheme = "original-figures";
 
 const PIECE_FILE_BY_TYPE: Record<PieceSymbol, string> = {
   k: "K",

@@ -10,6 +10,7 @@ import authRouter from "./routes/auth.js";
 import usersRouter from "./routes/users.js";
 import newsRouter from "./routes/news.js";
 import friendsRouter from "./routes/friends.js";
+import chatRouter from "./routes/chat.js";
 import openingsRouter from "./routes/openings.js";
 import { setupSocketServer } from "./realtime/socket.js";
 
@@ -45,6 +46,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/games", gamesRouter);
 app.use("/api/news", newsRouter);
 app.use("/api/friends", friendsRouter);
+app.use("/api/chat", chatRouter);
 app.use("/api/openings", openingsRouter);
 
 const httpServer = createServer(app);

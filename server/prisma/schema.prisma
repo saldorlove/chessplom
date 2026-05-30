@@ -45,6 +45,9 @@ model User {
   receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
   friendshipsA           Friendship[]    @relation("FriendshipUserA")
   friendshipsB           Friendship[]    @relation("FriendshipUserB")
+
+  sentFriendMessages     FriendMessage[] @relation("FriendMessageSender")
+  receivedFriendMessages FriendMessage[] @relation("FriendMessageRecipient")
 }
 
 model Game {
@@ -146,6 +149,24 @@ model Friendship {
   @@unique([userAId, userBId])
   @@index([userAId])
   @@index([userBId])
+}
+
+
+model FriendMessage {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  senderId    String
+  recipientId String
+  content     String
+  readAt      DateTime?
+
+  sender    User @relation("FriendMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("FriendMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, readAt])
+  @@index([createdAt])
 }
 
 model Opening {

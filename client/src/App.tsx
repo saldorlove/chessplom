@@ -20,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage";
 
 import AuthStatus from "./components/auth/AuthStatus";
 import FriendInviteToast from "./components/friends/FriendInviteToast";
+import FriendsChatWidget from "./components/chat/FriendsChatWidget";
 
 import TacticsPage from "./pages/TacticsPage";
 import PlaySearchPage from "./pages/PlaySearchPage";
@@ -138,6 +139,7 @@ function App() {
         </header>
 
         <FriendInviteToast />
+        <FriendsChatWidget />
 
         <main className="page-content">
           <Routes>

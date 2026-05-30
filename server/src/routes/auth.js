@@ -463,7 +463,7 @@ router.post("/resend-verification", requireAuth, async (req, res) => {
                 },
             });
             res.status(502).json({
-                message: "Не удалось отправить письмо. Проверь настройки EMAIL_PROVIDER / RESEND_API_KEY / MAIL_FROM и попробуй ещё раз.",
+                message: "Не удалось отправить код на этот email. Проверьте адрес почты или попробуйте ещё раз позже",
             });
         }
     }
@@ -537,7 +537,7 @@ router.post("/request-password-reset", async (req, res) => {
                 },
             });
             res.status(502).json({
-                message: "Не удалось отправить письмо. Проверь настройки EMAIL_PROVIDER / RESEND_API_KEY / MAIL_FROM и попробуй ещё раз.",
+                message: "Не удалось отправить код на этот email. Проверьте адрес почты или попробуйте ещё раз позже",
             });
         }
     }
