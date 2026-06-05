@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "prisma-erd-generator": "^2.4.3",
     "tsx": "^4.21.0"
   }
 }

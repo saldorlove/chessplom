@@ -444,6 +444,30 @@ export function setupSocketServer({
     );
   }
 
+  function findActiveRoomForUser(userId: string) {
+  const roomByUserId = findActiveFriendRoomForPlayer({
+    userId,
+    includeEnded: false,
+  });
+
+  if (roomByUserId) {
+    return roomByUserId;
+  }
+
+  for (const socketId of getOnlineSocketsForUser(userId)) {
+    const roomBySocketId = findActiveFriendRoomForPlayer({
+      socketId,
+      includeEnded: false,
+    });
+
+    if (roomBySocketId) {
+      return roomBySocketId;
+    }
+  }
+
+  return null;
+}
+
   function clearPendingInvitesByRoom(roomCode: string) {
     for (const [inviteId, invite] of pendingFriendInvites) {
       if (invite.roomCode === roomCode) {
@@ -499,10 +523,7 @@ export function setupSocketServer({
         const statuses: Record<string, "offline" | "online" | "in-game"> = {};
 
         for (const userId of uniqueUserIds) {
-          const activeRoom = findActiveFriendRoomForPlayer({
-            userId,
-            includeEnded: false,
-          });
+          const activeRoom = findActiveRoomForUser(userId);
 
           if (activeRoom) {
             statuses[userId] = "in-game";
@@ -703,6 +724,8 @@ export function setupSocketServer({
           createdAt: Date.now(),
         };
 
+        registerSocketUser(socket.id, entry.userId);
+
         onlineQueue.delete(socket.id);
 
         const activeRoom = findActiveFriendRoomForPlayer({
@@ -852,14 +875,18 @@ export function setupSocketServer({
     socket.on(
       "friend:create-room",
       (payload: CreateFriendRoomPayload, callback) => {
-        const room = createFriendRoom({
-          socketId: socket.id,
-          userId: getSafeUserId(payload?.userId),
-          username: getSafeUsername(payload?.username),
-          avatarUrl: payload?.avatarUrl ?? null,
-          time: getSafeTime(payload?.time),
-          hostColor: getSafeColor(payload?.color),
-        });
+      const userId = getSafeUserId(payload?.userId);
+
+      registerSocketUser(socket.id, userId);
+
+      const room = createFriendRoom({
+        socketId: socket.id,
+        userId,
+        username: getSafeUsername(payload?.username),
+        avatarUrl: payload?.avatarUrl ?? null,
+        time: getSafeTime(payload?.time),
+        hostColor: getSafeColor(payload?.color),
+      });
 
         socket.join(room.code);
 
@@ -884,10 +911,14 @@ export function setupSocketServer({
         return;
       }
 
+      const userId = getSafeUserId(payload?.userId);
+
+      registerSocketUser(socket.id, userId);
+
       const result = joinFriendRoom({
         code: roomCode,
         socketId: socket.id,
-        userId: getSafeUserId(payload?.userId),
+        userId,
         username: getSafeUsername(payload?.username),
         avatarUrl: payload?.avatarUrl ?? null,
       });
@@ -977,6 +1008,10 @@ export function setupSocketServer({
         return;
       }
 
+      const userId = getSafeUserId(payload?.userId);
+
+      registerSocketUser(socket.id, userId);
+
       socket.join(room.code);
 
       let player = getFriendRoomPlayer(room, socket.id);
@@ -986,7 +1021,7 @@ export function setupSocketServer({
           room,
           side: payload.side,
           socketId: socket.id,
-          userId: getSafeUserId(payload?.userId),
+          userId,
           username: getSafeUsername(payload?.username),
           avatarUrl: payload?.avatarUrl ?? null,
         });

@@ -217,12 +217,33 @@
   line-height: 1.45;
 }
 
-.friends-chat-message time {
-  display: block;
+.friends-chat-message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
   margin-top: 3px;
   color: #64748b;
   font-size: 10px;
+}
+
+.friends-chat-message-meta time {
+  display: block;
+  color: inherit;
+  font-size: inherit;
   text-align: right;
+}
+
+.friends-chat-message-receipt {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -3px;
+  line-height: 1;
+}
+
+.friends-chat-message-receipt.is-read {
+  color: #f5b042;
 }
 
 .friends-chat-message.incoming {

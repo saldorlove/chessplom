@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -70,7 +71,9 @@ export default function FriendsChatWidget() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickToBottomRef = useRef(true);
+  const isInitialMessageLoadRef = useRef(true);
 
   const activeConversation = useMemo(
     () =>
@@ -88,6 +91,29 @@ export default function FriendsChatWidget() {
       ),
     [conversations]
   );
+
+  function scrollMessagesToBottom() {
+  const container = messagesContainerRef.current;
+
+  if (!container) {
+    return;
+  }
+
+  container.scrollTop = container.scrollHeight;
+}
+
+  function handleMessagesScroll() {
+    const container = messagesContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const distanceToBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+
+    shouldStickToBottomRef.current = distanceToBottom <= 80;
+  }
 
   const refreshConversations = useCallback(async () => {
     if (!isAuthenticated) {
@@ -217,12 +243,21 @@ export default function FriendsChatWidget() {
     };
   }, [activeFriendId, isOpen, refreshMessages]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
-  }, [messages]);
+  useLayoutEffect(() => {
+    if (!activeFriendId || messages.length === 0) {
+      return;
+    }
+
+    if (isInitialMessageLoadRef.current) {
+      isInitialMessageLoadRef.current = false;
+      scrollMessagesToBottom();
+      return;
+    }
+
+    if (shouldStickToBottomRef.current) {
+      scrollMessagesToBottom();
+    }
+  }, [activeFriendId, messages]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -237,6 +272,7 @@ export default function FriendsChatWidget() {
     try {
       const response = await sendChatMessage(activeFriendId, draft);
       setDraft("");
+      shouldStickToBottomRef.current = true;
       setMessages((currentMessages) => {
         if (
           currentMessages.some((message) => message.id === response.message.id)
@@ -259,6 +295,10 @@ export default function FriendsChatWidget() {
   }
 
   function openConversation(friendId: string) {
+    isInitialMessageLoadRef.current = true;
+    shouldStickToBottomRef.current = true;
+
+    setMessages([]);
     setActiveFriendId(friendId);
     setError(null);
   }
@@ -277,7 +317,10 @@ export default function FriendsChatWidget() {
 
   return (
     <div
-      className={["friends-chat-widget", isOpen ? "is-open" : ""]
+      className={[
+        "friends-chat-widget",
+        isOpen ? "is-open" : "",
+      ]
         .filter(Boolean)
         .join(" ")}
     >
@@ -348,7 +391,11 @@ export default function FriendsChatWidget() {
 
           {activeConversation ? (
             <>
-              <div className="friends-chat-messages">
+                <div
+                  ref={messagesContainerRef}
+                  className="friends-chat-messages"
+                  onScroll={handleMessagesScroll}
+                >
                 {isLoadingMessages && messages.length === 0 ? (
                   <p className="friends-chat-empty">Загрузка сообщений...</p>
                 ) : null}
@@ -371,12 +418,27 @@ export default function FriendsChatWidget() {
                       ].join(" ")}
                     >
                       <p>{message.content}</p>
-                      <time>{formatTime(message.createdAt)}</time>
+                      <div className="friends-chat-message-meta">
+                        <time>{formatTime(message.createdAt)}</time>
+
+                        {isOwnMessage ? (
+                          <span
+                            className={[
+                              "friends-chat-message-receipt",
+                              message.readAt ? "is-read" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            aria-label={message.readAt ? "Прочитано" : "Отправлено"}
+                            title={message.readAt ? "Прочитано" : "Отправлено"}
+                          >
+                            {message.readAt ? "✓✓" : "✓"}
+                          </span>
+                        ) : null}
+                      </div>
                     </article>
                   );
                 })}
-
-                <div ref={messagesEndRef} />
               </div>
 
               <form className="friends-chat-compose" onSubmit={handleSubmit}>
